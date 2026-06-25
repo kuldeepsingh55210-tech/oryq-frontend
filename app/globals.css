@@ -1,26 +1,60 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #050814;      /* deeper page background, near-black navy */
+  --bg-card: #0f1526;         /* card backgrounds, lighter navy */
+  --bg-card-light: #1a2035;   /* nested cards/inputs */
+  --text-primary: #ffffff;    /* main text — pure white, high contrast */
+  --text-secondary: #94a3b8;  /* muted text — slate-400, still readable */
+  --text-tertiary: #64748b;   /* least important text — slate-500 */
+  --border-color: #22293f;    /* subtle borders */
+  --accent-blue: #3b82f6;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-amber: #f59e0b;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+@theme {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-light: var(--bg-card-light);
+  
+  /* Friendly alias colors to support clean utilities */
+  --color-card: var(--bg-card);
+  --color-card-light: var(--bg-card-light);
+  
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-tertiary: var(--text-tertiary);
+  --color-border-color: var(--border-color);
+  
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-green: var(--accent-green);
+  --color-accent-red: var(--accent-red);
+  --color-accent-amber: var(--accent-amber);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Custom Input Autofill and General Override Styles */
+input {
+  color-scheme: dark;
 }
+
+/* Chrome/Safari autofill override to preserve dark backgrounds */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-card-light) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
