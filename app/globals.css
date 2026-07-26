@@ -1,60 +1,121 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #050814;      /* deeper page background, near-black navy */
-  --bg-card: #0f1526;         /* card backgrounds, lighter navy */
-  --bg-card-light: #1a2035;   /* nested cards/inputs */
-  --text-primary: #ffffff;    /* main text — pure white, high contrast */
-  --text-secondary: #94a3b8;  /* muted text — slate-400, still readable */
-  --text-tertiary: #64748b;   /* least important text — slate-500 */
-  --border-color: #22293f;    /* subtle borders */
-  --accent-blue: #3b82f6;
-  --accent-green: #22c55e;
-  --accent-red: #ef4444;
-  --accent-amber: #f59e0b;
+  --bg-primary: #000008;      /* near-black with blue tint */
+  --bg-secondary: #05051A;    /* deep midnight */
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-primary: #FFFFFF;
+  --text-secondary: #94A3B8;
+  --text-muted: #475569;
+
+  /* Accent colors */
+  --accent-violet: #8B5CF6;
+  --accent-cyan: #06B6D4;
+  --accent-magenta: #EC4899;
+  --accent-lime: #84CC16;
+  --accent-gold: #F59E0B;
 }
 
 @theme {
   --color-bg-primary: var(--bg-primary);
-  --color-bg-card: var(--bg-card);
-  --color-bg-card-light: var(--bg-card-light);
-  
-  /* Friendly alias colors to support clean utilities */
-  --color-card: var(--bg-card);
-  --color-card-light: var(--bg-card-light);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-card: rgba(255, 255, 255, 0.03);
+  --color-card-light: rgba(255, 255, 255, 0.06);
+  --color-border-color: rgba(255, 255, 255, 0.08);
   
   --color-primary: var(--text-primary);
   --color-secondary: var(--text-secondary);
-  --color-tertiary: var(--text-tertiary);
-  --color-border-color: var(--border-color);
+  --color-muted: var(--text-muted);
   
-  --color-accent-blue: var(--accent-blue);
-  --color-accent-green: var(--accent-green);
-  --color-accent-red: var(--accent-red);
-  --color-accent-amber: var(--accent-amber);
+  --color-accent-blue: #1B4FD8;
+  --color-accent-green: #10B981;
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-magenta: var(--accent-magenta);
+  --color-accent-lime: var(--accent-lime);
+  --color-accent-gold: var(--accent-gold);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: var(--font-inter), sans-serif;
+  --font-display: var(--font-dm-serif-display), serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+
+  /* Animations */
+  --animate-marquee: marquee 25s linear infinite;
+  --animate-pulse-slow: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-shimmer: shimmer 3s infinite;
+  --animate-radar: radar 4s linear infinite;
+
+  @keyframes marquee {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-50%, 0, 0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes radar {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 }
 
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
 
-/* Custom Input Autofill and General Override Styles */
-input {
-  color-scheme: dark;
+/* Custom scroll behavior */
+html {
+  scroll-behavior: smooth;
 }
 
-/* Chrome/Safari autofill override to preserve dark backgrounds */
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px var(--bg-card-light) inset !important;
-  -webkit-text-fill-color: var(--text-primary) !important;
-  transition: background-color 5000s ease-in-out 0s;
+/* Utility for text gradients */
+.text-gradient-pink-orange {
+  background: linear-gradient(to right, #EC4899, #F97316);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-violet-cyan {
+  background: linear-gradient(to right, #8B5CF6, #06B6D4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+
+/* Shimmer Button Effect */
+.shimmer-btn {
+  background: linear-gradient(90deg, #8B5CF6 0%, #06B6D4 50%, #8B5CF6 100%);
+  background-size: 200% auto;
+  transition: all 0.3s ease;
+}
+.shimmer-btn:hover {
+  background-position: right center;
+  box-shadow: 0 0 35px rgba(139, 92, 246, 0.6);
+}
+
+/* Fade-in scroll animations */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+.reveal-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Hide scrollbars but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 

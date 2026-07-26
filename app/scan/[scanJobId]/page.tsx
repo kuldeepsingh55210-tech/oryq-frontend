@@ -33,7 +33,7 @@ interface PageProps {
 
 type TabType = 'overview' | 'competitors' | 'hallucinations' | 'action_plan';
 
-export default function ScanResultsPage({ params }: PageProps) {
+function ScanResultsContent({ params }: PageProps) {
   const router = useRouter();
   const resolvedParams = use(params);
   const scanJobId = resolvedParams.scanJobId;
@@ -615,3 +615,14 @@ export default function ScanResultsPage({ params }: PageProps) {
     </SidebarLayout>
   );
 }
+
+import ProtectedRoute from '@/components/ProtectedRoute';
+
+export default function ScanResultsPage(props: PageProps) {
+  return (
+    <ProtectedRoute>
+      <ScanResultsContent {...props} />
+    </ProtectedRoute>
+  );
+}
+

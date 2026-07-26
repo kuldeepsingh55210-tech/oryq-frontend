@@ -490,10 +490,15 @@ function HistorySearchContent() {
   );
 }
 
+import ProtectedRoute from '@/components/ProtectedRoute';
+
 export default function BrandHistoryPage() {
   return (
-    <Suspense fallback={<LoadingScreen message="Initializing search history..." />}>
-      <HistorySearchContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<LoadingScreen message="Initializing search history..." />}>
+        <HistorySearchContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }
+

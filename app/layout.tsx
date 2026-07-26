@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { DM_Serif_Display, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const dmSerifDisplay = DM_Serif_Display({
+  variable: "--font-dm-serif-display",
   subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -25,12 +35,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${dmSerifDisplay.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-[#050814] text-slate-100 selection:bg-blue-500/30 selection:text-blue-200">
-        <main className="flex-1 flex flex-col">
-          {children}
-        </main>
+      <body className="min-h-full flex flex-col bg-[#000008] text-slate-100 selection:bg-blue-500/30 selection:text-blue-200">
+        <AuthProvider>
+          <main className="flex-1 flex flex-col">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   );

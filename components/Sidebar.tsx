@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export type SidebarItem = 'dashboard' | 'history' | 'competitors' | 'hallucinations' | 'settings';
 
@@ -12,6 +14,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
   const router = useRouter();
+  const { user, logout } = useAuth();
 
   const navItems = [
     {
@@ -106,8 +109,33 @@ export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
         })}
       </nav>
 
-      {/* Pinned New Scan Button at bottom */}
-      <div className="p-4 border-t border-border-color">
+      {/* User profile & bottom CTA container */}
+      <div className="p-4 border-t border-border-color space-y-3">
+        {user ? (
+          <div className="rounded-xl border border-border-color bg-slate-900/60 p-3 flex items-center justify-between">
+            <div className="flex flex-col overflow-hidden pr-2">
+              <span className="text-xs font-bold text-white truncate">{user.name}</span>
+              <span className="text-[10px] text-slate-400 truncate uppercase font-mono">{user.role}</span>
+            </div>
+            <button
+              onClick={logout}
+              className="text-xs text-red-400 hover:text-red-300 font-semibold transition"
+              title="Log out"
+            >
+              Log out
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-2 text-xs">
+            <Link href="/login" className="text-slate-300 hover:text-white font-medium">
+              Log in
+            </Link>
+            <Link href="/signup" className="text-blue-400 hover:text-blue-300 font-bold">
+              Sign up
+            </Link>
+          </div>
+        )}
+
         <button
           onClick={() => router.push('/')}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent-blue hover:bg-blue-500 text-white py-3 text-sm font-bold shadow-lg transition active:scale-[0.98] cursor-pointer"

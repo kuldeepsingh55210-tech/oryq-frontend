@@ -1,4 +1,7 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { refreshAuthToken } from './auth/authApi';
+import { API_BASE_URL } from './config';
+
+export { API_BASE_URL };
 
 export interface ProviderSummary {
   provider: string;
@@ -77,23 +80,71 @@ export interface HallucinationItem {
   severity: string;
 }
 
+export interface GeneratedContent {
+  content_type: string;
+  generated_text: string;
+  generated_code?: string;
+  instructions: string;
+}
+
+export interface RecommendationItem {
+  category: string;
+  title: string;
+  action: string;
+  effort: string;
+  impact: string;
+  generated_content?: GeneratedContent | null;
+}
+
+const ACCESS_TOKEN_KEY = 'oryq_access_token';
+const REFRESH_TOKEN_KEY = 'oryq_refresh_token';
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options?.headers || {}),
-    },
+
+  let accessToken = typeof window !== 'undefined' ? localStorage.getItem(ACCESS_TOKEN_KEY) : null;
+  const refreshToken = typeof window !== 'undefined' ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
+
+  const getHeaders = (token: string | null) => ({
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options?.headers || {}),
   });
 
+  let response = await fetch(url, {
+    ...options,
+    headers: getHeaders(accessToken),
+  });
+
+  // Attempt 401 token refresh once and retry request
+  if (response.status === 401 && refreshToken) {
+    try {
+      const newTokens = await refreshAuthToken(refreshToken);
+      accessToken = newTokens.access_token;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(ACCESS_TOKEN_KEY, newTokens.access_token);
+        localStorage.setItem(REFRESH_TOKEN_KEY, newTokens.refresh_token);
+      }
+      response = await fetch(url, {
+        ...options,
+        headers: getHeaders(accessToken),
+      });
+    } catch {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+      }
+      throw new Error('Session expired. Please log in again.');
+    }
+  }
+
   if (!response.ok) {
-    let errorDetail = 'API Request failed';
+    let errorDetail = 'API request failed';
     try {
       const errBody = await response.json();
       errorDetail = errBody?.detail || errorDetail;
     } catch {
-      // Fallback if not json
+      // Fallback if non-JSON
     }
     throw new Error(errorDetail);
   }
@@ -156,24 +207,6 @@ export async function emailScanReport(scanJobId: string, email: string): Promise
   });
 }
 
-export interface GeneratedContent {
-  content_type: string;
-  generated_text: string;
-  generated_code?: string;
-  instructions: string;
-}
-
-export interface RecommendationItem {
-  category: string;
-  title: string;
-  action: string;
-  effort: string;
-  impact: string;
-  generated_content?: GeneratedContent | null;
-}
-
 export async function getRecommendations(scanJobId: string): Promise<RecommendationItem[]> {
   return request<RecommendationItem[]>(`/api/v1/scan/${scanJobId}/recommendations`);
 }
-
-
