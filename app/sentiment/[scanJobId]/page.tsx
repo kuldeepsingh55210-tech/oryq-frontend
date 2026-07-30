@@ -42,6 +42,10 @@ function SentimentPageContent({ params }: PageProps) {
   const [reputation, setReputation] = useState<ReputationData | null>(null);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && scanJobId) {
+      localStorage.setItem('lastScanJobId', scanJobId);
+    }
+
     async function fetchData() {
       try {
         setLoading(true);

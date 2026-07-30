@@ -18,6 +18,18 @@ function SidebarWithActiveState({ onItemClick }: { onItemClick: (item: SidebarIt
 
   if (pathname.includes('/history')) {
     computedActiveItem = 'history';
+  } else if (pathname.includes('/workspaces')) {
+    computedActiveItem = 'workspaces';
+  } else if (pathname.includes('/sentiment')) {
+    computedActiveItem = 'sentiment';
+  } else if (pathname.includes('/entity')) {
+    computedActiveItem = 'entity';
+  } else if (pathname.includes('/revenue')) {
+    computedActiveItem = 'revenue';
+  } else if (pathname.includes('/benchmark')) {
+    computedActiveItem = 'benchmark';
+  } else if (pathname.includes('/alerts')) {
+    computedActiveItem = 'alerts';
   } else if (pathname.includes('/scan/')) {
     const tab = searchParams.get('tab');
     if (tab === 'competitors') {
@@ -55,8 +67,14 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
       return;
     }
 
-    // Retrieve last scan job ID from localStorage
-    const lastScanId = localStorage.getItem('lastScanJobId');
+    if (item === 'workspaces') {
+      router.push('/workspaces');
+      return;
+    }
+
+    // Retrieve last scan job ID or brand ID from localStorage
+    const lastScanId = typeof window !== 'undefined' ? localStorage.getItem('lastScanJobId') : null;
+    const lastBrandId = typeof window !== 'undefined' ? (localStorage.getItem('lastBrandId') || lastScanId) : null;
 
     if (item === 'dashboard') {
       if (onTabChange) {
@@ -87,6 +105,51 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
         router.push(`/scan/${lastScanId}?tab=hallucinations`);
       } else {
         router.push('/');
+      }
+      return;
+    }
+
+    if (item === 'sentiment') {
+      if (lastScanId) {
+        router.push(`/sentiment/${lastScanId}`);
+      } else {
+        router.push('/history');
+      }
+      return;
+    }
+
+    if (item === 'entity') {
+      if (lastScanId) {
+        router.push(`/entity/${lastScanId}`);
+      } else {
+        router.push('/history');
+      }
+      return;
+    }
+
+    if (item === 'revenue') {
+      if (lastBrandId) {
+        router.push(`/revenue/${lastBrandId}`);
+      } else {
+        router.push('/history');
+      }
+      return;
+    }
+
+    if (item === 'benchmark') {
+      if (lastBrandId) {
+        router.push(`/benchmark/${lastBrandId}`);
+      } else {
+        router.push('/history');
+      }
+      return;
+    }
+
+    if (item === 'alerts') {
+      if (lastBrandId) {
+        router.push(`/alerts/${lastBrandId}`);
+      } else {
+        router.push('/history');
       }
       return;
     }

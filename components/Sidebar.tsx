@@ -5,7 +5,18 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
 
-export type SidebarItem = 'dashboard' | 'history' | 'competitors' | 'hallucinations' | 'settings';
+export type SidebarItem =
+  | 'dashboard'
+  | 'history'
+  | 'competitors'
+  | 'hallucinations'
+  | 'sentiment'
+  | 'entity'
+  | 'revenue'
+  | 'benchmark'
+  | 'workspaces'
+  | 'alerts'
+  | 'settings';
 
 interface SidebarProps {
   activeItem: SidebarItem;
@@ -54,6 +65,60 @@ export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
       ),
     },
     {
+      id: 'sentiment' as SidebarItem,
+      label: 'Sentiment',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'entity' as SidebarItem,
+      label: 'Knowledge Graph',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+      ),
+    },
+    {
+      id: 'revenue' as SidebarItem,
+      label: 'Revenue Impact',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'benchmark' as SidebarItem,
+      label: 'Benchmark',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'alerts' as SidebarItem,
+      label: 'Alerts',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      ),
+    },
+    {
+      id: 'workspaces' as SidebarItem,
+      label: 'Workspaces',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0H9m1 0h1" />
+        </svg>
+      ),
+    },
+    {
       id: 'settings' as SidebarItem,
       label: 'Settings',
       icon: (
@@ -89,14 +154,14 @@ export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
       </div>
 
       {/* Navigation Links Area */}
-      <nav className="flex-1 py-6 space-y-1">
+      <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = activeItem === item.id;
           return (
             <button
               key={item.id}
               onClick={() => onItemClick(item.id)}
-              className={`w-full flex items-center gap-3.5 px-6 py-3 text-sm font-semibold transition-all duration-150 border-l-[3px] cursor-pointer ${
+              className={`w-full flex items-center gap-3.5 px-6 py-2.5 text-sm font-semibold transition-all duration-150 border-l-[3px] cursor-pointer ${
                 isActive
                   ? 'bg-blue-600/10 text-accent-blue border-accent-blue'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/10 border-transparent'

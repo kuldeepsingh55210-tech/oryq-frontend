@@ -129,6 +129,9 @@ function EntityIntelligenceContent({ params }: PageProps) {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && scanJobId) {
+      localStorage.setItem('lastScanJobId', scanJobId);
+    }
     fetchData();
   }, [scanJobId]);
 

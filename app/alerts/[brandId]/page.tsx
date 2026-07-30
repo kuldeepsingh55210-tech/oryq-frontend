@@ -185,6 +185,9 @@ function AlertsPageContent({ params }: PageProps) {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && brandId) {
+      localStorage.setItem('lastBrandId', brandId);
+    }
     loadData();
   }, [brandId, filterActiveOnly]);
 

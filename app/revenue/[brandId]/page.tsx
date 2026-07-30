@@ -169,6 +169,9 @@ function RevenuePageContent({ params }: PageProps) {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && brandId) {
+      localStorage.setItem('lastBrandId', brandId);
+    }
     fetchData();
   }, [brandId]);
 

@@ -36,6 +36,9 @@ export default function ScanForm() {
       const res = await startScan(brandName.trim(), websiteUrl.trim(), industry.trim());
       
       if (res && res.scan_job_id) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('lastScanJobId', res.scan_job_id);
+        }
         router.push(`/scan/${res.scan_job_id}`);
       } else {
         throw new Error('No scan job ID returned from server');

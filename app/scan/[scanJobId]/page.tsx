@@ -181,6 +181,9 @@ function ScanResultsContent({ params }: PageProps) {
         setError(null);
         const data = await getScanStatus(scanJobId);
         setStatusData(data);
+        if (data.brand_id && typeof window !== 'undefined') {
+          localStorage.setItem('lastBrandId', data.brand_id);
+        }
 
         // Extract brand name from the results prompts if available
         let extractedName = 'Your Brand';
