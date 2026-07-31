@@ -5,6 +5,15 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
+import PremiumCard from '@/components/ui/PremiumCard';
+import MetricStat from '@/components/ui/MetricStat';
+import SeverityBadge from '@/components/ui/SeverityBadge';
+import {
+  formatCurrency,
+  formatScore,
+  formatPercent,
+  formatNumber,
+} from '@/lib/utils/formatters';
 
 interface PageProps {
   params: Promise<{ brandId: string }>;
@@ -62,27 +71,13 @@ function toNumber(value: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function formatRevenue(amount: number, currency: string) {
-  const currencyCode = currency === 'USD' ? 'USD' : 'INR';
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: currencyCode,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatCompactRevenue(amount: number, currency: string) {
-  const currencyCode = currency === 'USD' ? 'USD' : 'INR';
-  const formatter = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: currencyCode,
-    maximumFractionDigits: amount >= 1000 ? 0 : 2,
-  });
-  return formatter.format(amount);
-}
-
-function formatPercentage(value: number) {
-  return `${Number.isFinite(value) ? value.toFixed(1) : '0.0'}%`;
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }
 
 function buildTrendPath(items: RevenueHistoryItem[]) {
@@ -178,6 +173,16 @@ function RevenuePageContent({ params }: PageProps) {
   const hasHistoryTrend = history.length > 1;
   const trendPath = useMemo(() => buildTrendPath(history), [history]);
 
+  const currencyCode = (intelligence?.currency === 'USD' ? 'USD' : 'INR') as 'INR' | 'USD';
+
+  // Calculate monthly AI leads for summary
+  const monthlyAiLeads = useMemo(() => {
+    if (!settings) return 0;
+    const traffic = settings.monthly_website_traffic || 10000;
+    const aiPct = settings.ai_traffic_percentage || 15;
+    return Math.round(traffic * (aiPct / 100));
+  }, [settings]);
+
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaveError(null);
@@ -224,30 +229,34 @@ function RevenuePageContent({ params }: PageProps) {
   }
 
   return (
-    <SidebarLayout activeItem="dashboard">
-      <div className="mx-auto max-w-7xl space-y-8 p-6 md:p-8">
-        <div className="relative overflow-hidden rounded-3xl border border-amber-500/20 bg-card p-6 shadow-md md:p-8">
+    <SidebarLayout activeItem="revenue">
+      <div className="mx-auto max-w-7xl space-y-6 p-6 md:p-8">
+        {/* Page Hero Header Banner */}
+        <PremiumCard padding="large" className="relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(217,119,6,0.16),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(27,79,216,0.14),transparent_28%)]" />
           <div className="relative flex flex-col gap-5 border-b border-border-color pb-5 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="inline-flex items-center gap-2">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">V2 Revenue Intelligence</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                  Financial Impact Model
+                </span>
               </div>
               <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl font-display">
                 Revenue Intelligence
               </h1>
               <p className="mt-1 max-w-2xl text-xs text-secondary">
-                Translate AI visibility into revenue, missed revenue, and the assumptions driving the model.
+                Translate AI visibility into estimated revenue impact, opportunity at risk, and actionable conversion dynamics.
               </p>
             </div>
 
+            {/* Sub-Navigation Tabs */}
             <div className="flex items-center gap-2 rounded-xl border border-border-color bg-card-light p-1">
               {(['overview', 'history', 'settings'] as TabType[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`rounded-lg px-4 py-2 text-xs font-bold capitalize transition ${
+                  className={`rounded-lg px-4 py-2 text-xs font-bold capitalize transition cursor-pointer ${
                     activeTab === tab
                       ? 'bg-amber-600 text-white shadow'
                       : 'text-slate-400 hover:text-white'
@@ -258,127 +267,109 @@ function RevenuePageContent({ params }: PageProps) {
               ))}
             </div>
           </div>
-        </div>
+        </PremiumCard>
 
+        {/* Error State */}
         {error && (
-          <div className="flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-medium text-red-300">
-            <span>{error}</span>
-            <button
-              onClick={fetchData}
-              className="rounded-lg bg-red-500/20 px-3 py-1 text-xs font-bold text-red-200 transition hover:bg-red-500/30"
-            >
-              Retry
-            </button>
-          </div>
+          <PremiumCard error={error} onRetry={fetchData} />
         )}
 
+        {/* Overview Tab */}
         {activeTab === 'overview' && intelligence && settings && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-              <div className="lg:col-span-5 rounded-2xl border border-amber-500/25 bg-card p-6 shadow-md">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Estimated AI Revenue</span>
-                <div className="mt-3 text-4xl font-extrabold text-white font-mono">
-                  {formatRevenue(intelligence.estimated_ai_revenue, intelligence.currency)}
-                </div>
-                <p className="mt-3 text-xs text-secondary">
-                  AI-visible demand converted into expected monthly revenue.
-                </p>
-              </div>
+          <div className="space-y-6">
+            {/* 1. Primary "At-a-Glance" MetricStat Row (4 Cards) */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricStat
+                label="Estimated AI Revenue"
+                value={intelligence.estimated_ai_revenue}
+                valueFormat="currency"
+                currency={currencyCode}
+                contextText="Expected monthly AI-driven revenue"
+                accentColor="positive"
+              />
 
-              <div className="lg:col-span-4 rounded-2xl border border-border-color bg-card p-6 shadow-md">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Missed Revenue</span>
-                <div className="mt-3 text-4xl font-extrabold text-amber-400 font-mono">
-                  {formatRevenue(intelligence.missed_revenue, intelligence.currency)}
-                </div>
-                <p className="mt-3 text-xs text-secondary">
-                  Missed {formatPercentage(100 - intelligence.current_visibility_score)} of the opportunity because AI does not recommend you.
-                </p>
-              </div>
+              <MetricStat
+                label="Revenue at Risk"
+                value={intelligence.missed_revenue}
+                valueFormat="currency"
+                currency={currencyCode}
+                contextText={`Opportunity lost due to ${formatPercent(100 - intelligence.current_visibility_score, false)} uncaptured demand`}
+                accentColor="critical"
+              />
 
-              <div className="lg:col-span-3 rounded-2xl border border-border-color bg-card p-6 shadow-md">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Competitor Deals Lost</span>
-                <div className="mt-3 text-4xl font-extrabold text-white font-mono">
-                  {intelligence.competitor_deals_lost}
-                </div>
-                <p className="mt-3 text-xs text-secondary">
-                  Competitor conversations AI is likely steering away from your brand.
-                </p>
-              </div>
+              <MetricStat
+                label="Competitor Deals Lost"
+                value={intelligence.competitor_deals_lost}
+                valueFormat="number"
+                contextText="Monthly deal conversations steered to rivals"
+                accentColor="medium"
+              />
+
+              <MetricStat
+                label="Monthly AI Leads"
+                value={monthlyAiLeads}
+                valueFormat="number"
+                contextText={`Based on ${formatNumber(settings.monthly_website_traffic)} traffic & ${formatPercent(settings.ai_traffic_percentage, false)} AI share`}
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-              <div className="lg:col-span-8 rounded-2xl border border-border-color bg-card p-6 shadow-md">
-                <div className="flex items-start justify-between gap-4 border-b border-border-color pb-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Business Translation</h3>
-                    <p className="mt-1 text-xs text-secondary">
-                      Each visibility point is worth ~{formatCompactRevenue(intelligence.revenue_per_visibility_point, intelligence.currency)}/month in AI-driven revenue.
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-400">
-                    Amber = cost risk
+            {/* 2. Business Translation Context Banner */}
+            <PremiumCard padding="standard">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                    Business Impact Translation
                   </span>
+                  <p className="text-sm font-semibold text-white">
+                    Each visibility point is worth{' '}
+                    <span className="font-mono text-amber-400">
+                      {formatCurrency(intelligence.revenue_per_visibility_point, currencyCode)}
+                    </span>
+                    /month in AI-driven pipeline.
+                  </p>
                 </div>
-
-                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl border border-border-color/70 bg-slate-950/50 p-4">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly AI Leads</span>
-                    <div className="mt-2 text-2xl font-extrabold text-white font-mono">
-                      {intelligence.current_visibility_score >= 0 ? Math.round(toNumber(form.monthly_website_traffic, settings.monthly_website_traffic) * (toNumber(form.ai_traffic_percentage, settings.ai_traffic_percentage) / 100)) : 0}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border-color/70 bg-slate-950/50 p-4">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Visibility Score</span>
-                    <div className="mt-2 text-2xl font-extrabold text-white font-mono">
-                      {intelligence.current_visibility_score.toFixed(1)}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="lg:col-span-4 rounded-2xl border border-border-color bg-card p-6 shadow-md">
-                <h3 className="text-sm font-bold text-white">Current Assumptions</h3>
-                <div className="mt-4 space-y-3 text-xs text-secondary">
-                  <div className="flex items-center justify-between border-b border-border-color/60 pb-2">
-                    <span>Deal value</span>
-                    <span className="font-mono text-white">{formatRevenue(settings.avg_deal_value, settings.currency)}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-border-color/60 pb-2">
-                    <span>Traffic</span>
-                    <span className="font-mono text-white">{settings.monthly_website_traffic.toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-border-color/60 pb-2">
-                    <span>AI traffic %</span>
-                    <span className="font-mono text-white">{formatPercentage(settings.ai_traffic_percentage)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Conversion rate</span>
-                    <span className="font-mono text-white">{formatPercentage(settings.conversion_rate * 100)}</span>
-                  </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-slate-400">
+                    Visibility Score:{' '}
+                    <strong className="text-white font-mono">{formatScore(intelligence.current_visibility_score)}</strong>
+                  </span>
+                  <SeverityBadge
+                    severity={intelligence.current_visibility_score >= 60 ? 'positive' : 'medium'}
+                    label={intelligence.current_visibility_score >= 60 ? 'Healthy Visibility' : 'Action Required'}
+                  />
                 </div>
               </div>
-            </div>
+            </PremiumCard>
 
-            <div className="rounded-2xl border border-border-color bg-card p-6 shadow-md">
-              <h3 className="text-sm font-bold text-white">Revenue Insight</h3>
-              <p className="mt-2 text-sm text-slate-300">{intelligence.insight_text}</p>
-            </div>
+            {/* 3. Revenue Insight Card */}
+            <PremiumCard>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                Strategic Revenue Insight
+              </h3>
+              <p className="mt-3 text-sm text-slate-300 leading-relaxed font-medium">
+                {intelligence.insight_text}
+              </p>
+            </PremiumCard>
           </div>
         )}
 
+        {/* History Tab */}
         {activeTab === 'history' && (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-border-color bg-card p-6 shadow-md">
+            <PremiumCard padding="large">
               <div className="flex items-center justify-between border-b border-border-color pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Revenue History</h3>
-                  <p className="mt-1 text-xs text-secondary">Chronological scan-to-scan revenue change.</p>
+                  <h3 className="text-base font-bold text-white">Revenue Trajectory History</h3>
+                  <p className="mt-1 text-xs text-secondary">Chronological scan-to-scan financial trajectory.</p>
                 </div>
-                <span className="text-xs font-mono text-slate-400">{history.length} points</span>
+                <span className="text-xs font-mono text-slate-400">
+                  {formatNumber(history.length)} scan data points
+                </span>
               </div>
 
               {hasHistoryTrend ? (
                 <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+                  {/* Time-Series Line Trend Visualization */}
                   <div className="lg:col-span-7 rounded-xl border border-border-color/70 bg-slate-950/50 p-4">
                     <svg viewBox="0 0 600 220" className="h-56 w-full">
                       <defs>
@@ -404,17 +395,24 @@ function RevenuePageContent({ params }: PageProps) {
                     </svg>
                   </div>
 
+                  {/* Clean History Log List */}
                   <div className="lg:col-span-5 overflow-hidden rounded-xl border border-border-color/70">
                     <div className="divide-y divide-border-color/70">
                       {history.map((item) => (
                         <div key={`${item.created_at}-${item.month}`} className="flex items-center justify-between gap-4 bg-card px-4 py-3">
                           <div>
                             <div className="text-sm font-bold text-white">{item.month}</div>
-                            <div className="text-[11px] text-slate-500">Visibility {item.visibility_score.toFixed(1)}%</div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              Visibility {formatScore(item.visibility_score)}
+                            </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-mono font-bold text-white">{formatRevenue(item.estimated_ai_revenue, intelligence?.currency || 'INR')}</div>
-                            <div className="text-[11px] font-mono text-amber-400">{formatRevenue(item.missed_revenue, intelligence?.currency || 'INR')} missed</div>
+                            <div className="text-sm font-mono font-bold text-white">
+                              {formatCurrency(item.estimated_ai_revenue, currencyCode)}
+                            </div>
+                            <div className="text-[11px] font-mono text-amber-400">
+                              {formatCurrency(item.missed_revenue, currencyCode)} missed
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -423,62 +421,69 @@ function RevenuePageContent({ params }: PageProps) {
                 </div>
               ) : (
                 <div className="mt-6 rounded-xl border border-border-color/60 bg-slate-950/50 p-6 text-sm text-secondary">
-                  Not enough history yet. Once a second scan completes, the trend will appear here.
+                  Not enough historical scans yet. Once subsequent scans run, trajectory lines will populate automatically.
                 </div>
               )}
-            </div>
+            </PremiumCard>
           </div>
         )}
 
+        {/* Settings Tab */}
         {activeTab === 'settings' && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-8 rounded-2xl border border-border-color bg-card p-6 shadow-md">
-              <div className="border-b border-border-color pb-4">
-                <h3 className="text-sm font-bold text-white">Revenue Settings</h3>
-                <p className="mt-1 text-xs text-secondary">
-                  These assumptions drive your revenue estimates, so the more accurate they are, the more accurate your revenue impact numbers.
-                </p>
+          <PremiumCard padding="large">
+            <div className="border-b border-border-color pb-4">
+              <h3 className="text-base font-bold text-white">Financial Impact Assumptions</h3>
+              <p className="mt-1 text-xs text-secondary">
+                Configure your deal metrics and traffic baselines to calibrate the AI revenue impact engine.
+              </p>
+            </div>
+
+            {saveError && (
+              <div className="mt-4 rounded-xl border border-[#DC2626]/30 bg-[#DC2626]/10 p-4 text-xs font-semibold text-red-300">
+                {saveError}
               </div>
+            )}
 
-              {saveError && (
-                <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-                  {saveError}
-                </div>
-              )}
+            {saveSuccess && (
+              <div className="mt-4 rounded-xl border border-[#0EA47A]/30 bg-[#0EA47A]/10 p-4 text-xs font-semibold text-green-300">
+                {saveSuccess}
+              </div>
+            )}
 
-              {saveSuccess && (
-                <div className="mt-4 rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-300">
-                  {saveSuccess}
-                </div>
-              )}
-
-              <form onSubmit={handleSave} className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <form onSubmit={handleSave} className="mt-6 space-y-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <label className="space-y-2">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-300">Avg deal value</span>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Average Deal Value ({form.currency})
+                  </span>
                   <input
                     type="number"
                     min="0"
                     step="1"
                     value={form.avg_deal_value}
                     onChange={(event) => setForm((current) => ({ ...current, avg_deal_value: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 font-mono text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-300">Monthly website traffic</span>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Monthly Website Traffic
+                  </span>
                   <input
                     type="number"
                     min="0"
                     step="1"
                     value={form.monthly_website_traffic}
                     onChange={(event) => setForm((current) => ({ ...current, monthly_website_traffic: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 font-mono text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-300">AI traffic percentage</span>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                    AI Traffic Percentage (%)
+                  </span>
                   <input
                     type="number"
                     min="0"
@@ -486,12 +491,14 @@ function RevenuePageContent({ params }: PageProps) {
                     step="0.1"
                     value={form.ai_traffic_percentage}
                     onChange={(event) => setForm((current) => ({ ...current, ai_traffic_percentage: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 font-mono text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-300">Conversion rate</span>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Conversion Rate (Decimal, e.g. 0.02)
+                  </span>
                   <input
                     type="number"
                     min="0"
@@ -499,63 +506,39 @@ function RevenuePageContent({ params }: PageProps) {
                     step="0.001"
                     value={form.conversion_rate}
                     onChange={(event) => setForm((current) => ({ ...current, conversion_rate: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 font-mono text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
                   />
                 </label>
 
                 <label className="space-y-2 md:col-span-2">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-300">Currency</span>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Model Currency
+                  </span>
                   <select
                     value={form.currency}
                     onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value as 'INR' | 'USD' }))}
-                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 text-sm text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                    className="w-full rounded-xl border border-slate-700 bg-card-light px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
                   >
-                    <option value="INR">INR</option>
-                    <option value="USD">USD</option>
+                    <option value="INR">INR (₹)</option>
+                    <option value="USD">USD ($)</option>
                   </select>
                 </label>
-
-                <div className="md:col-span-2 flex items-center justify-between gap-4 pt-2">
-                  <p className="text-xs text-slate-500">
-                    Brand-level assumptions only. Revenue is recalculated after every save.
-                  </p>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-xl bg-accent-blue px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {saving ? 'Saving...' : 'Save settings'}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <div className="lg:col-span-4 rounded-2xl border border-amber-500/20 bg-card p-6 shadow-md">
-              <h3 className="text-sm font-bold text-white">Current defaults</h3>
-              <div className="mt-4 space-y-3 text-xs text-secondary">
-                <div className="flex items-center justify-between border-b border-border-color/60 pb-2">
-                  <span>Avg deal value</span>
-                  <span className="font-mono text-white">{formatRevenue(settings?.avg_deal_value ?? 50000, settings?.currency ?? 'INR')}</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-border-color/60 pb-2">
-                  <span>Monthly traffic</span>
-                  <span className="font-mono text-white">{(settings?.monthly_website_traffic ?? 10000).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-border-color/60 pb-2">
-                  <span>AI traffic %</span>
-                  <span className="font-mono text-white">{formatPercentage(settings?.ai_traffic_percentage ?? 15)}</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-border-color/60 pb-2">
-                  <span>Conversion rate</span>
-                  <span className="font-mono text-white">{formatPercentage((settings?.conversion_rate ?? 0.02) * 100)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Currency</span>
-                  <span className="font-mono text-white">{settings?.currency ?? 'INR'}</span>
-                </div>
               </div>
-            </div>
-          </div>
+
+              <div className="flex items-center justify-between gap-4 border-t border-border-color pt-6">
+                <p className="text-xs text-slate-400">
+                  Assumptions apply brand-wide. Saving immediately recalculates financial impact models.
+                </p>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-accent-blue px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-blue-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                >
+                  {saving ? 'Saving...' : 'Save Settings'}
+                </button>
+              </div>
+            </form>
+          </PremiumCard>
         )}
       </div>
     </SidebarLayout>
