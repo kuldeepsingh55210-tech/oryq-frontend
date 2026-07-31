@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { getScanStatus, ScanStatusResponse } from '@/lib/api';
+import SeverityBadge, { SeverityLevel } from './ui/SeverityBadge';
 
 export type SidebarItem =
   | 'dashboard'
@@ -26,6 +28,38 @@ interface SidebarProps {
 export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const [scoreData, setScoreData] = useState<{ score: number; scanJobId: string } | null>(null);
+
+  // Fetch current score from last scan job ID stored in localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const lastScanId = localStorage.getItem('lastScanJobId');
+    if (!lastScanId) return;
+
+    const fetchScore = async () => {
+      try {
+        const data: ScanStatusResponse = await getScanStatus(lastScanId);
+        if (data && data.score !== undefined) {
+          setScoreData({
+            score: data.score,
+            scanJobId: lastScanId,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch sidebar score:', err);
+      }
+    };
+
+    fetchScore();
+  }, []);
+
+  // Determine score severity level based on industry thresholds
+  const getScoreSeverity = (score: number): SeverityLevel => {
+    if (score >= 60) return 'positive';
+    if (score >= 40) return 'medium';
+    return 'critical';
+  };
 
   const navItems = [
     {
@@ -176,6 +210,31 @@ export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
 
       {/* User profile & bottom CTA container */}
       <div className="p-4 border-t border-border-color space-y-3">
+        {/* PERSISTENT CURRENT SCORE WIDGET */}
+        <div className="rounded-xl border border-border-color bg-card-light/40 p-3 flex items-center justify-between shadow-sm">
+          {scoreData ? (
+            <>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Current Score
+                </span>
+                <span className="text-xl font-extrabold font-mono text-white mt-0.5">
+                  {Math.round(scoreData.score)}
+                  <span className="text-xs font-normal text-slate-500">/100</span>
+                </span>
+              </div>
+              <SeverityBadge
+                severity={getScoreSeverity(scoreData.score)}
+                label={`${Math.round(scoreData.score)}%`}
+              />
+            </>
+          ) : (
+            <div className="text-[11px] font-medium text-slate-400 leading-snug">
+              Run your first scan to see your live score here.
+            </div>
+          )}
+        </div>
+
         {user ? (
           <div className="rounded-xl border border-border-color bg-slate-900/60 p-3 flex items-center justify-between">
             <div className="flex flex-col overflow-hidden pr-2">
