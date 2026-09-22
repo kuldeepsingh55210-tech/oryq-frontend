@@ -78,8 +78,8 @@ function HistorySearchContent() {
   };
 
   // Calculate Growth indicator
-  const getGrowth = () => {
-    if (history.length < 2) return { text: '+14.2%', isPositive: true };
+  const getGrowth = (): { text: string; isPositive: boolean | null } => {
+    if (history.length < 2) return { text: '—', isPositive: null };
     const latest = history[0].score;
     const oldest = history[history.length - 1].score;
     const diff = latest - oldest;
@@ -90,7 +90,7 @@ function HistorySearchContent() {
   };
 
   const growth = getGrowth();
-  const latestScore = history.length > 0 ? Math.round(history[0].score) : 89.4;
+  const latestScore: number | string = history.length > 0 ? Math.round(history[0].score) : '—';
 
   // Render SVG Trend Chart
   const renderTrendChart = () => {
@@ -128,14 +128,14 @@ function HistorySearchContent() {
           <div className="flex gap-6 text-right">
             <div>
               <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-widest">Current Score</span>
-              <span className="text-sm font-black text-white">{latestScore}</span>
+              <span className={`text-sm font-black ${latestScore === '—' ? 'text-slate-500' : 'text-white'}`}>{latestScore}</span>
             </div>
             <div>
               <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-widest">90D Growth</span>
               <span className={`text-sm font-black flex items-center gap-0.5 justify-end ${
-                growth.isPositive ? 'text-accent-green' : 'text-accent-red'
+                growth.isPositive === null ? 'text-slate-500' : growth.isPositive ? 'text-accent-green' : 'text-accent-red'
               }`}>
-                {growth.isPositive ? '↑' : '↓'} {growth.text}
+                {growth.isPositive !== null && (growth.isPositive ? '↑ ' : '↓ ')}{growth.text}
               </span>
             </div>
           </div>
