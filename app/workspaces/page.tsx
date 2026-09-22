@@ -6,6 +6,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface Workspace {
   id: string;
@@ -25,6 +26,7 @@ function formatDate(iso: string) {
 }
 
 function WorkspacesContent() {
+  const { authenticatedFetch } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,23 +36,11 @@ function WorkspacesContent() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const buildHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  };
-
   const fetchWorkspaces = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE_URL}/api/v1/agency/workspaces`, {
-        headers: buildHeaders(),
-      });
-      if (!res.ok) throw new Error('Failed to fetch agency workspaces.');
-      const data: Workspace[] = await res.json();
+      const data = await authenticatedFetch<Workspace[]>(`${API_BASE_URL}/api/v1/agency/workspaces`);
       setWorkspaces(data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error loading workspaces.');
@@ -61,7 +51,8 @@ function WorkspacesContent() {
 
   useEffect(() => {
     fetchWorkspaces();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticatedFetch]);
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,18 +61,11 @@ function WorkspacesContent() {
     try {
       setCreating(true);
       setCreateError(null);
-      const res = await fetch(`${API_BASE_URL}/api/v1/agency/workspaces`, {
+      const created = await authenticatedFetch<Workspace>(`${API_BASE_URL}/api/v1/agency/workspaces`, {
         method: 'POST',
-        headers: buildHeaders(),
         body: JSON.stringify({ name: newWorkspaceName.trim() }),
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || 'Failed to create workspace.');
-      }
-
-      const created: Workspace = await res.json();
       setWorkspaces((prev) => [created, ...prev]);
       setNewWorkspaceName('');
       setCreateModalOpen(false);

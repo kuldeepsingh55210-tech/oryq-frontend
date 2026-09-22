@@ -6,6 +6,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface PageProps {
   params: Promise<{ workspaceId: string }>;
@@ -43,6 +44,7 @@ function formatDate(iso: string) {
 function SingleWorkspaceContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const workspaceId = resolvedParams.workspaceId;
+  const { authenticatedFetch, accessToken } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,38 +74,28 @@ function SingleWorkspaceContent({ params }: PageProps) {
   const [generatingPdfBrandId, setGeneratingPdfBrandId] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  const buildHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  };
-
   const loadWorkspaceData = async () => {
     try {
       setLoading(true);
       setError(null);
 
       // Fetch workspace brands
-      const brandsRes = await fetch(`${API_BASE_URL}/api/v1/agency/workspaces/${workspaceId}/brands`, {
-        headers: buildHeaders(),
-      });
-      if (!brandsRes.ok) throw new Error('Failed to fetch workspace client brands.');
-      const brandsData: WorkspaceBrand[] = await brandsRes.json();
+      const brandsData = await authenticatedFetch<WorkspaceBrand[]>(
+        `${API_BASE_URL}/api/v1/agency/workspaces/${workspaceId}/brands`
+      );
       setBrands(brandsData);
 
       // Fetch whitelabel config
-      const wlRes = await fetch(`${API_BASE_URL}/api/v1/agency/${workspaceId}/whitelabel`, {
-        headers: buildHeaders(),
-      });
-
-      if (wlRes.ok) {
-        const wlData: WhitelabelConfig = await wlRes.json();
+      try {
+        const wlData = await authenticatedFetch<WhitelabelConfig>(
+          `${API_BASE_URL}/api/v1/agency/${workspaceId}/whitelabel`
+        );
         setWhitelabel({
           ...wlData,
           logo_url: wlData.logo_url || '',
         });
+      } catch {
+        // Whitelabel config may not exist yet, default state is kept
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error loading workspace details.');
@@ -114,7 +106,8 @@ function SingleWorkspaceContent({ params }: PageProps) {
 
   useEffect(() => {
     loadWorkspaceData();
-  }, [workspaceId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, authenticatedFetch]);
 
   const handleAddBrand = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,19 +118,16 @@ function SingleWorkspaceContent({ params }: PageProps) {
       setAddBrandError(null);
       setAddBrandSuccess(null);
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/agency/workspaces/${workspaceId}/brands`, {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({
-          brand_id: newBrandId.trim(),
-          client_name: newClientName.trim() || undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || 'Failed to attach brand to workspace.');
-      }
+      await authenticatedFetch(
+        `${API_BASE_URL}/api/v1/agency/workspaces/${workspaceId}/brands`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            brand_id: newBrandId.trim(),
+            client_name: newClientName.trim() || undefined,
+          }),
+        }
+      );
 
       setAddBrandSuccess('Client brand attached successfully.');
       setNewBrandId('');
@@ -156,24 +146,20 @@ function SingleWorkspaceContent({ params }: PageProps) {
       setSavingWhitelabel(true);
       setWhitelabelMsg(null);
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/agency/${workspaceId}/whitelabel`, {
-        method: 'PATCH',
-        headers: buildHeaders(),
-        body: JSON.stringify({
-          agency_name: whitelabel.agency_name.trim() || undefined,
-          logo_url: whitelabel.logo_url?.trim() || null,
-          primary_color: whitelabel.primary_color,
-          secondary_color: whitelabel.secondary_color,
-          report_footer: whitelabel.report_footer.trim() || undefined,
-        }),
-      });
+      const updated = await authenticatedFetch<WhitelabelConfig>(
+        `${API_BASE_URL}/api/v1/agency/${workspaceId}/whitelabel`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            agency_name: whitelabel.agency_name.trim() || undefined,
+            logo_url: whitelabel.logo_url?.trim() || null,
+            primary_color: whitelabel.primary_color,
+            secondary_color: whitelabel.secondary_color,
+            report_footer: whitelabel.report_footer.trim() || undefined,
+          }),
+        }
+      );
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || 'Failed to update whitelabel settings.');
-      }
-
-      const updated: WhitelabelConfig = await res.json();
       setWhitelabel({
         ...updated,
         logo_url: updated.logo_url || '',
@@ -194,10 +180,9 @@ function SingleWorkspaceContent({ params }: PageProps) {
       setGeneratingPdfBrandId(brandId);
       setPdfError(null);
 
-      const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
       const res = await fetch(`${API_BASE_URL}/api/v1/agency/${workspaceId}/report/${brandId}`, {
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
       });
 

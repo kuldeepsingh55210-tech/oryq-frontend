@@ -5,6 +5,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
+import { useAuth } from '@/lib/auth/AuthContext';
 import PremiumCard from '@/components/ui/PremiumCard';
 import MetricStat from '@/components/ui/MetricStat';
 import SeverityBadge from '@/components/ui/SeverityBadge';
@@ -101,6 +102,7 @@ function buildTrendPath(items: RevenueHistoryItem[]) {
 function RevenuePageContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const brandId = resolvedParams.brandId;
+  const { authenticatedFetch } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
@@ -112,14 +114,6 @@ function RevenuePageContent({ params }: PageProps) {
   const [history, setHistory] = useState<RevenueHistoryItem[]>([]);
   const [settings, setSettings] = useState<RevenueSettingsResponse | null>(null);
   const [form, setForm] = useState<RevenueSettingsFormState>(DEFAULT_SETTINGS);
-
-  const buildHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  };
 
   const syncFormFromSettings = (data: RevenueSettingsResponse) => {
     setForm({
@@ -136,20 +130,10 @@ function RevenuePageContent({ params }: PageProps) {
       setLoading(true);
       setError(null);
 
-      const [intelRes, historyRes, settingsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/v1/revenue/${brandId}/intelligence`, { headers: buildHeaders() }),
-        fetch(`${API_BASE_URL}/api/v1/revenue/${brandId}/history`, { headers: buildHeaders() }),
-        fetch(`${API_BASE_URL}/api/v1/revenue/${brandId}/settings`, { headers: buildHeaders() }),
-      ]);
-
-      if (!intelRes.ok) throw new Error('Failed to load revenue intelligence.');
-      if (!historyRes.ok) throw new Error('Failed to load revenue history.');
-      if (!settingsRes.ok) throw new Error('Failed to load revenue settings.');
-
       const [intelData, historyData, settingsData] = await Promise.all([
-        intelRes.json(),
-        historyRes.json(),
-        settingsRes.json(),
+        authenticatedFetch<RevenueIntelligenceResponse>(`${API_BASE_URL}/api/v1/revenue/${brandId}/intelligence`),
+        authenticatedFetch<RevenueHistoryItem[]>(`${API_BASE_URL}/api/v1/revenue/${brandId}/history`),
+        authenticatedFetch<RevenueSettingsResponse>(`${API_BASE_URL}/api/v1/revenue/${brandId}/settings`),
       ]);
 
       setIntelligence(intelData);
@@ -168,7 +152,8 @@ function RevenuePageContent({ params }: PageProps) {
       localStorage.setItem('lastBrandId', brandId);
     }
     fetchData();
-  }, [brandId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandId, authenticatedFetch]);
 
   const hasHistoryTrend = history.length > 1;
   const trendPath = useMemo(() => buildTrendPath(history), [history]);
@@ -198,19 +183,15 @@ function RevenuePageContent({ params }: PageProps) {
         currency: form.currency,
       };
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/revenue/${brandId}/settings`, {
-        method: 'PATCH',
-        headers: buildHeaders(),
-        body: JSON.stringify(payload),
-      });
+      const body = await authenticatedFetch<{ settings?: RevenueSettingsResponse }>(
+        `${API_BASE_URL}/api/v1/revenue/${brandId}/settings`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        }
+      );
 
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody?.detail || 'Failed to save revenue settings.');
-      }
-
-      const body = await res.json();
-      const updatedSettings = body?.settings as RevenueSettingsResponse | undefined;
+      const updatedSettings = body?.settings;
       if (updatedSettings) {
         setSettings(updatedSettings);
         syncFormFromSettings(updatedSettings);
@@ -256,11 +237,10 @@ function RevenuePageContent({ params }: PageProps) {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`rounded-lg px-4 py-2 text-xs font-bold capitalize transition cursor-pointer ${
-                    activeTab === tab
+                  className={`rounded-lg px-4 py-2 text-xs font-bold capitalize transition cursor-pointer ${activeTab === tab
                       ? 'bg-amber-600 text-white shadow'
                       : 'text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>

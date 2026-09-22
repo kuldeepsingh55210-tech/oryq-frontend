@@ -5,6 +5,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
+import { useAuth } from '@/lib/auth/AuthContext';
 import PremiumCard from '@/components/ui/PremiumCard';
 import MetricStat from '@/components/ui/MetricStat';
 import SeverityBadge from '@/components/ui/SeverityBadge';
@@ -52,38 +53,26 @@ function clamp(value: number, min: number, max: number) {
 function BenchmarkPageContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const brandId = resolvedParams.brandId;
+  const { authenticatedFetch } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [benchmark, setBenchmark] = useState<BenchmarkResponse | null>(null);
   const [industryStats, setIndustryStats] = useState<IndustryBenchmarkResponse | null>(null);
 
-  const buildHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const benchmarkRes = await fetch(`${API_BASE_URL}/api/v1/benchmark/${brandId}`, {
-        headers: buildHeaders(),
-      });
-      if (!benchmarkRes.ok) throw new Error('Failed to load benchmark summary.');
-      const benchmarkData: BenchmarkResponse = await benchmarkRes.json();
+      const benchmarkData = await authenticatedFetch<BenchmarkResponse>(
+        `${API_BASE_URL}/api/v1/benchmark/${brandId}`
+      );
       setBenchmark(benchmarkData);
 
-      const industryRes = await fetch(
-        `${API_BASE_URL}/api/v1/benchmark/industry/${encodeURIComponent(benchmarkData.industry)}`,
-        { headers: buildHeaders() }
+      const industryData = await authenticatedFetch<IndustryBenchmarkResponse>(
+        `${API_BASE_URL}/api/v1/benchmark/industry/${encodeURIComponent(benchmarkData.industry)}`
       );
-      if (!industryRes.ok) throw new Error('Failed to load industry benchmark stats.');
-      const industryData: IndustryBenchmarkResponse = await industryRes.json();
       setIndustryStats(industryData);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error loading benchmark data.');
@@ -97,7 +86,8 @@ function BenchmarkPageContent({ params }: PageProps) {
       localStorage.setItem('lastBrandId', brandId);
     }
     fetchData();
-  }, [brandId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandId, authenticatedFetch]);
 
   const positioned = useMemo(() => {
     if (!benchmark || !industryStats) return null;

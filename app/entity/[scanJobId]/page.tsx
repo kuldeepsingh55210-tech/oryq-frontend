@@ -6,6 +6,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/config';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface PageProps {
   params: Promise<{ scanJobId: string }>;
@@ -57,6 +58,7 @@ type TabType = 'overview' | 'graph' | 'gaps';
 function EntityIntelligenceContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const scanJobId = resolvedParams.scanJobId;
+  const { authenticatedFetch } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
@@ -81,41 +83,43 @@ function EntityIntelligenceContent({ params }: PageProps) {
     try {
       setLoading(true);
       setError(null);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
 
       // 1. Fetch scan job details to obtain brand_id
-      const scanRes = await fetch(`${API_BASE_URL}/api/v1/scan/${scanJobId}`, { headers });
-      if (scanRes.ok) {
-        const scanData = await scanRes.json();
-        if (scanData.brand_id) {
+      try {
+        const scanData = await authenticatedFetch<{ brand_id?: string }>(
+          `${API_BASE_URL}/api/v1/scan/${scanJobId}`
+        );
+        if (scanData?.brand_id) {
           setBrandId(scanData.brand_id);
         }
+      } catch {
+        // Non-critical if brand_id not immediately resolved
       }
 
       // 2. Fetch Entity Overview
-      const overviewRes = await fetch(`${API_BASE_URL}/api/v1/entity/${scanJobId}/overview`, { headers });
-      if (!overviewRes.ok) {
-        throw new Error('Failed to load entity overview.');
-      }
-      const overviewData = await overviewRes.json();
+      const overviewData = await authenticatedFetch<EntityOverviewResponse>(
+        `${API_BASE_URL}/api/v1/entity/${scanJobId}/overview`
+      );
       setOverview(overviewData);
 
       // 3. Fetch Entity Graph
-      const graphRes = await fetch(`${API_BASE_URL}/api/v1/entity/${scanJobId}/graph`, { headers });
-      if (graphRes.ok) {
-        const gData = await graphRes.json();
+      try {
+        const gData = await authenticatedFetch<GraphResponse>(
+          `${API_BASE_URL}/api/v1/entity/${scanJobId}/graph`
+        );
         setGraphData(gData || { nodes: [], edges: [] });
+      } catch {
+        // Non-critical if graph data call fails
       }
 
       // 4. Fetch Entity Gaps
-      const gapsRes = await fetch(`${API_BASE_URL}/api/v1/entity/${scanJobId}/gaps`, { headers });
-      if (gapsRes.ok) {
-        const gapsData = await gapsRes.json();
+      try {
+        const gapsData = await authenticatedFetch<EntityGapItem[]>(
+          `${API_BASE_URL}/api/v1/entity/${scanJobId}/gaps`
+        );
         setGaps(gapsData || []);
+      } catch {
+        // Non-critical if gaps call fails
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -133,7 +137,8 @@ function EntityIntelligenceContent({ params }: PageProps) {
       localStorage.setItem('lastScanJobId', scanJobId);
     }
     fetchData();
-  }, [scanJobId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanJobId, authenticatedFetch]);
 
   const handleAddEntity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,23 +158,16 @@ function EntityIntelligenceContent({ params }: PageProps) {
     setIsSubmittingEntity(true);
 
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-      const res = await fetch(`${API_BASE_URL}/api/v1/entity/${brandId}/add`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          entity_name: newEntityName.trim(),
-          entity_type: newEntityType,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Failed to add entity.');
-      }
+      await authenticatedFetch(
+        `${API_BASE_URL}/api/v1/entity/${brandId}/add`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            entity_name: newEntityName.trim(),
+            entity_type: newEntityType,
+          }),
+        }
+      );
 
       setAddEntitySuccess(`Entity '${newEntityName}' registered successfully.`);
       setNewEntityName('');

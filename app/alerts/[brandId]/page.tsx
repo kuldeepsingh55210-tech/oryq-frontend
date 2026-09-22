@@ -6,6 +6,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface PageProps {
   params: Promise<{ brandId: string }>;
@@ -102,6 +103,7 @@ function getSeverityBadge(severity: string) {
 function AlertsPageContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const brandId = resolvedParams.brandId;
+  const { authenticatedFetch } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,14 +125,6 @@ function AlertsPageContent({ params }: PageProps) {
   const [testingSlack, setTestingSlack] = useState(false);
   const [slackTestMsg, setSlackTestMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const buildHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  };
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -140,17 +134,13 @@ function AlertsPageContent({ params }: PageProps) {
       const alertsUrl = `${API_BASE_URL}/api/v1/alerts/${encodeURIComponent(brandId)}${
         filterActiveOnly ? '?dismissed=false' : ''
       }`;
-      const alertsRes = await fetch(alertsUrl, { headers: buildHeaders() });
-      if (!alertsRes.ok) throw new Error('Failed to fetch alerts feed.');
-      const alertsData: AlertItem[] = await alertsRes.json();
+      const alertsData = await authenticatedFetch<AlertItem[]>(alertsUrl);
       setAlerts(alertsData);
 
       // 2. Fetch Settings
-      const settingsRes = await fetch(`${API_BASE_URL}/api/v1/alerts/${encodeURIComponent(brandId)}/settings`, {
-        headers: buildHeaders(),
-      });
-      if (!settingsRes.ok) throw new Error('Failed to fetch alert settings.');
-      const settingsData: AlertSetting[] = await settingsRes.json();
+      const settingsData = await authenticatedFetch<AlertSetting[]>(
+        `${API_BASE_URL}/api/v1/alerts/${encodeURIComponent(brandId)}/settings`
+      );
 
       // Build dictionary per alert_type
       const map: Record<string, AlertSetting> = {};
@@ -189,7 +179,8 @@ function AlertsPageContent({ params }: PageProps) {
       localStorage.setItem('lastBrandId', brandId);
     }
     loadData();
-  }, [brandId, filterActiveOnly]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandId, filterActiveOnly, authenticatedFetch]);
 
   const handleDismissAlert = async (alertId: string) => {
     // Optimistic UI update: mark as dismissed in local state immediately
@@ -198,13 +189,9 @@ function AlertsPageContent({ params }: PageProps) {
     );
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/alerts/${alertId}/dismiss`, {
+      await authenticatedFetch(`${API_BASE_URL}/api/v1/alerts/${alertId}/dismiss`, {
         method: 'PATCH',
-        headers: buildHeaders(),
       });
-      if (!res.ok) {
-        throw new Error('Failed to dismiss alert.');
-      }
     } catch (err: unknown) {
       // Revert if API fails
       loadData();
@@ -256,18 +243,13 @@ function AlertsPageContent({ params }: PageProps) {
           custom_webhook_url: setting.channels.includes('webhook') ? customWebhook.trim() || null : null,
         };
 
-        return fetch(`${API_BASE_URL}/api/v1/alerts/${encodeURIComponent(brandId)}/settings`, {
+        return authenticatedFetch(`${API_BASE_URL}/api/v1/alerts/${encodeURIComponent(brandId)}/settings`, {
           method: 'POST',
-          headers: buildHeaders(),
           body: JSON.stringify(payload),
         });
       });
 
-      const results = await Promise.all(promises);
-      const failed = results.filter((r) => !r.ok);
-      if (failed.length > 0) {
-        throw new Error('Failed to save some alert settings.');
-      }
+      await Promise.all(promises);
 
       setSaveSettingsMsg({ type: 'success', text: 'Alert configurations saved successfully!' });
       await loadData();
@@ -291,16 +273,17 @@ function AlertsPageContent({ params }: PageProps) {
       setTestingSlack(true);
       setSlackTestMsg(null);
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/alerts/test/slack`, {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({
-          webhook_url: slackWebhook.trim(),
-          brand_name: brandId,
-        }),
-      });
+      const data = await authenticatedFetch<{ success?: boolean; error?: string; message?: string }>(
+        `${API_BASE_URL}/api/v1/alerts/test/slack`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            webhook_url: slackWebhook.trim(),
+            brand_name: brandId,
+          }),
+        }
+      );
 
-      const data = await res.json();
       if (data.success) {
         setSlackTestMsg({ type: 'success', text: 'Test Slack alert dispatched successfully!' });
       } else {

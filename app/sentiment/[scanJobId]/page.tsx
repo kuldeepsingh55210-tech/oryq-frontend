@@ -5,6 +5,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
+import { useAuth } from '@/lib/auth/AuthContext';
 import PremiumCard from '@/components/ui/PremiumCard';
 import MetricStat from '@/components/ui/MetricStat';
 import SeverityBadge, { SeverityLevel } from '@/components/ui/SeverityBadge';
@@ -41,6 +42,7 @@ interface ReputationData {
 function SentimentPageContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const scanJobId = resolvedParams.scanJobId;
+  const { authenticatedFetch } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,17 +57,10 @@ function SentimentPageContent({ params }: PageProps) {
     async function fetchData() {
       try {
         setLoading(true);
-        const token = typeof window !== 'undefined' ? localStorage.getItem('oryq_access_token') : null;
-        const headers = {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        };
 
-        const sentRes = await fetch(`${API_BASE_URL}/api/v1/sentiment/${scanJobId}/feed`, { headers });
-        if (!sentRes.ok) {
-          throw new Error('Failed to fetch sentiment feed');
-        }
-        const sentData = await sentRes.json();
+        const sentData = await authenticatedFetch<SentimentItem[]>(
+          `${API_BASE_URL}/api/v1/sentiment/${scanJobId}/feed`
+        );
         setSentimentList(sentData || []);
 
         // Calculate reputation metrics
@@ -98,7 +93,7 @@ function SentimentPageContent({ params }: PageProps) {
     }
 
     fetchData();
-  }, [scanJobId]);
+  }, [scanJobId, authenticatedFetch]);
 
   // Calculate count of detected hallucinations for 4th KPI card
   const hallucinationCount = useMemo(() => {
