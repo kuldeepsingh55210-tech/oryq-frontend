@@ -56,7 +56,7 @@ export default function OverviewTab({
   
   const accuracy = hasHallucinationsRun && mentionCount > 0
     ? Math.max(0, Math.min(100, 100 - (hallucinationsCount / mentionCount * 100)))
-    : 94.2; // default premium mockup if not run yet
+    : null;
 
   // 2. Competitor gap value
   const gapValue = competitorData ? competitorData.gap_to_leader : null;
@@ -87,18 +87,21 @@ export default function OverviewTab({
 
   // 4. Render Weekly Trend Mini Bar Chart
   const renderWeeklyTrend = () => {
-    // Generate 8 data points: use real scores if history has enough, otherwise use fallback values
-    const dataPoints: number[] = [45, 52, 48, 55, 62, 58, 64, Math.round(score)];
-    if (brandHistory && brandHistory.length > 1) {
+    // Only plot real historical score points
+    let dataPoints: number[] = [];
+    if (brandHistory && brandHistory.length > 0) {
       const historyList = [...brandHistory].reverse();
-      // take last 8 scans, pad with placeholders if less
-      const actualScores = historyList.slice(-8).map(h => Math.round(h.score));
-      while (actualScores.length < 8) {
-        actualScores.unshift(40 + Math.floor(Math.random() * 15));
-      }
-      for (let i = 0; i < 8; i++) {
-        dataPoints[i] = actualScores[i];
-      }
+      dataPoints = historyList.slice(-8).map(h => Math.round(h.score));
+    } else if (score !== undefined && score !== null && !isNaN(score)) {
+      dataPoints = [Math.round(score)];
+    }
+
+    if (dataPoints.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-16 text-xs text-slate-500 font-bold">
+          — PENDING AUDIT —
+        </div>
+      );
     }
 
     const maxVal = 100;
@@ -244,11 +247,13 @@ export default function OverviewTab({
           <div className="rounded-2xl border border-border-color bg-card p-5 flex flex-col justify-between shadow-md">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Accuracy</span>
             <div className="my-2">
-              <span className="text-3xl font-black text-white">{accuracy.toFixed(1)}%</span>
+              <span className={`text-3xl font-black ${accuracy === null ? 'text-slate-500' : 'text-white'}`}>
+                {accuracy === null ? '—' : `${accuracy.toFixed(1)}%`}
+              </span>
             </div>
             <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-slate-800/40 border border-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-400">
-              <span className="h-2 w-2 rounded-full bg-accent-green shrink-0" />
-              STABLE
+              <span className={`h-2 w-2 rounded-full shrink-0 ${accuracy === null ? 'bg-slate-500' : 'bg-accent-green'}`} />
+              {accuracy === null ? 'PENDING AUDIT' : 'STABLE'}
             </span>
           </div>
 
@@ -256,11 +261,11 @@ export default function OverviewTab({
           <div className="rounded-2xl border border-border-color bg-card p-5 flex flex-col justify-between shadow-md">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sentiment</span>
             <div className="my-2">
-              <span className="text-3xl font-black text-white">Neutral</span>
+              <span className="text-3xl font-black text-slate-500">—</span>
             </div>
             <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-slate-800/40 border border-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-400">
-              <span className="h-2 w-2 rounded-full bg-accent-blue shrink-0 animate-pulse" />
-              RISING
+              <span className="h-2 w-2 rounded-full bg-slate-500 shrink-0" />
+              PENDING AUDIT
             </span>
           </div>
 
@@ -303,26 +308,7 @@ export default function OverviewTab({
             </p>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
-                <span>SOCIAL MENTION SHARE</span>
-                <span>42%</span>
-              </div>
-              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-accent-blue rounded-full" style={{ width: '42%' }} />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
-                <span>TECHNICAL ACCURACY</span>
-                <span>89%</span>
-              </div>
-              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-accent-green rounded-full" style={{ width: '89%' }} />
-              </div>
-            </div>
-          </div>
+
         </div>
 
         {/* Email Visibility Report Card */}
