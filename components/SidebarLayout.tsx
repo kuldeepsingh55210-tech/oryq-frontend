@@ -10,7 +10,13 @@ interface SidebarLayoutProps {
   onTabChange?: (tab: string) => void;
 }
 
-function SidebarWithActiveState({ onItemClick }: { onItemClick: (item: SidebarItem) => void }) {
+function SidebarWithActiveState({
+  onItemClick,
+  disabledItems,
+}: {
+  onItemClick: (item: SidebarItem) => void;
+  disabledItems?: SidebarItem[];
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -41,7 +47,7 @@ function SidebarWithActiveState({ onItemClick }: { onItemClick: (item: SidebarIt
     }
   }
 
-  return <Sidebar activeItem={computedActiveItem} onItemClick={onItemClick} />;
+  return <Sidebar activeItem={computedActiveItem} onItemClick={onItemClick} disabledItems={disabledItems} />;
 }
 
 export default function SidebarLayout({ children, activeItem, onTabChange }: SidebarLayoutProps) {
@@ -49,10 +55,17 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
   const pathname = usePathname();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [disabledItems, setDisabledItems] = useState<SidebarItem[]>([]);
 
-  // Close mobile drawer on route changes
+  // Close mobile drawer on route changes and sync disabled brand routes
   useEffect(() => {
     setMobileSidebarOpen(false);
+    const brandId = typeof window !== 'undefined' ? localStorage.getItem('lastBrandId') : null;
+    if (!brandId) {
+      setDisabledItems(['revenue', 'benchmark', 'alerts']);
+    } else {
+      setDisabledItems([]);
+    }
   }, [pathname]);
 
   // Unified click handler for sidebar navigation items
@@ -74,7 +87,7 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
 
     // Retrieve last scan job ID or brand ID from localStorage
     const lastScanId = typeof window !== 'undefined' ? localStorage.getItem('lastScanJobId') : null;
-    const lastBrandId = typeof window !== 'undefined' ? (localStorage.getItem('lastBrandId') || lastScanId) : null;
+    const lastBrandId = typeof window !== 'undefined' ? localStorage.getItem('lastBrandId') : null;
 
     if (item === 'dashboard') {
       if (onTabChange) {
@@ -130,8 +143,6 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
     if (item === 'revenue') {
       if (lastBrandId) {
         router.push(`/revenue/${lastBrandId}`);
-      } else {
-        router.push('/history');
       }
       return;
     }
@@ -139,8 +150,6 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
     if (item === 'benchmark') {
       if (lastBrandId) {
         router.push(`/benchmark/${lastBrandId}`);
-      } else {
-        router.push('/history');
       }
       return;
     }
@@ -148,8 +157,6 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
     if (item === 'alerts') {
       if (lastBrandId) {
         router.push(`/alerts/${lastBrandId}`);
-      } else {
-        router.push('/history');
       }
       return;
     }
@@ -161,7 +168,7 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
       {/* 1. DESKTOP SIDEBAR - PERSISTENT */}
       <div className="hidden lg:flex h-full shrink-0">
         <Suspense fallback={<div className="w-64 bg-card border-r border-border-color h-full" />}>
-          <SidebarWithActiveState onItemClick={handleItemClick} />
+          <SidebarWithActiveState onItemClick={handleItemClick} disabledItems={disabledItems} />
         </Suspense>
       </div>
 
@@ -179,7 +186,7 @@ export default function SidebarLayout({ children, activeItem, onTabChange }: Sid
               </svg>
             </button>
             <Suspense fallback={<div className="w-64 bg-card h-full" />}>
-              <SidebarWithActiveState onItemClick={handleItemClick} />
+              <SidebarWithActiveState onItemClick={handleItemClick} disabledItems={disabledItems} />
             </Suspense>
           </div>
           {/* Backdrop click to close */}

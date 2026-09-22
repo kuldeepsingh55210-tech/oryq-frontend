@@ -23,9 +23,10 @@ export type SidebarItem =
 interface SidebarProps {
   activeItem: SidebarItem;
   onItemClick: (item: SidebarItem) => void;
+  disabledItems?: SidebarItem[];
 }
 
-export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
+export default function Sidebar({ activeItem, onItemClick, disabledItems = [] }: SidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [scoreData, setScoreData] = useState<{ score: number; scanJobId: string } | null>(null);
@@ -191,14 +192,24 @@ export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
       <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = activeItem === item.id;
+          const isDisabled = disabledItems.includes(item.id);
           return (
             <button
               key={item.id}
-              onClick={() => onItemClick(item.id)}
-              className={`w-full flex items-center gap-3.5 px-6 py-2.5 text-sm font-semibold transition-all duration-150 border-l-[3px] cursor-pointer ${
-                isActive
-                  ? 'bg-blue-600/10 text-accent-blue border-accent-blue'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/10 border-transparent'
+              onClick={() => {
+                if (!isDisabled) {
+                  onItemClick(item.id);
+                }
+              }}
+              disabled={isDisabled}
+              aria-disabled={isDisabled}
+              title={isDisabled ? 'Run a scan first to unlock this page' : undefined}
+              className={`w-full flex items-center gap-3.5 px-6 py-2.5 text-sm font-semibold transition-all duration-150 border-l-[3px] ${
+                isDisabled
+                  ? 'opacity-40 pointer-events-none text-slate-500 border-transparent cursor-not-allowed'
+                  : isActive
+                  ? 'bg-blue-600/10 text-accent-blue border-accent-blue cursor-pointer'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/10 border-transparent cursor-pointer'
               }`}
             >
               {item.icon}
