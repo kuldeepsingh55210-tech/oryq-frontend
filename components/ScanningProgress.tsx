@@ -13,10 +13,27 @@ interface ScanningProgressProps {
   brandName: string;
   scanType: ScanType;
   onFinishedSim?: () => void;
+  completedPrompts?: number;
+  totalPrompts?: number;
+  activeProviders?: string[];
 }
 
-export default function ScanningProgress({ brandName, scanType, onFinishedSim }: ScanningProgressProps) {
-  const [progress, setProgress] = useState(0);
+export default function ScanningProgress({
+  brandName,
+  scanType,
+  onFinishedSim,
+  completedPrompts,
+  totalPrompts,
+  activeProviders,
+}: ScanningProgressProps) {
+  const [timerProgress, setTimerProgress] = useState(0);
+
+  const isLiveInitial = scanType === 'initial' && totalPrompts !== undefined && totalPrompts > 0;
+  const liveProgress = isLiveInitial
+    ? Math.min(100, Math.round(((completedPrompts || 0) / totalPrompts) * 100))
+    : 0;
+
+  const progress = isLiveInitial ? liveProgress : timerProgress;
 
   // Define steps and settings based on scan type
   let title = 'ACTIVE INTELLIGENCE SESSION';
@@ -25,7 +42,17 @@ export default function ScanningProgress({ brandName, scanType, onFinishedSim }:
   let steps: Step[] = [];
   let duration = 8000; // default initial scan duration in ms
 
-  if (scanType === 'initial') {
+  const providersList = (activeProviders && activeProviders.length > 0)
+    ? activeProviders
+    : ['Groq', 'Gemini'];
+
+  if (isLiveInitial) {
+    steps = providersList.map((p) => ({
+      name: p,
+      action: `Querying ${p}...`,
+    }));
+    infoText = `High precision scanning protocol initialized. Querying active LLM providers in real-time. Progress: ${completedPrompts || 0} of ${totalPrompts} queries evaluated.`;
+  } else if (scanType === 'initial') {
     steps = [
       { name: 'OpenAI', action: 'Querying ChatGPT (OpenAI)...' },
       { name: 'Anthropic', action: 'Indexing Claude (Anthropic)...' },
@@ -57,11 +84,13 @@ export default function ScanningProgress({ brandName, scanType, onFinishedSim }:
   }
 
   useEffect(() => {
+    if (isLiveInitial) return;
+
     const startTime = Date.now();
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const pct = Math.min(98, Math.round((elapsed / duration) * 100));
-      setProgress(pct);
+      setTimerProgress(pct);
 
       if (elapsed >= duration) {
         clearInterval(interval);
@@ -70,11 +99,12 @@ export default function ScanningProgress({ brandName, scanType, onFinishedSim }:
     }, 100);
 
     return () => clearInterval(interval);
-  }, [duration, onFinishedSim]);
+  }, [duration, onFinishedSim, isLiveInitial]);
 
   // Determine the status of each step based on the overall percentage
   const getStepStatus = (index: number) => {
     const totalSteps = steps.length;
+    if (totalSteps === 0) return 'pending';
     const stepRange = 100 / totalSteps;
     const stepThreshold = (index + 1) * stepRange;
     const prevThreshold = index * stepRange;

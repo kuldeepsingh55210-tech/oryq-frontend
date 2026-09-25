@@ -47,6 +47,8 @@ export interface ScanStatusResponse {
   scan_job_id: string;
   brand_id?: string;
   brand_name?: string;
+  completed_prompts?: number;
+  total_prompts?: number;
   status: string;
   score: number;
   total_cost_usd: number;

@@ -11,6 +11,7 @@ import OverviewTab from '@/components/tabs/OverviewTab';
 import CompetitorTab from '@/components/tabs/CompetitorTab';
 import HallucinationTab from '@/components/tabs/HallucinationTab';
 import ActionPlanTab from '@/components/tabs/ActionPlanTab';
+import ScanningProgress from '@/components/ScanningProgress';
 import {
   getScanStatus,
   compareCompetitors,
@@ -45,6 +46,9 @@ function ScanResultsContent({ params }: PageProps) {
   const [loadingMessage, setLoadingMessage] = useState('Fetching AI visibility diagnostics...');
   const [error, setError] = useState<string | null>(null);
   const [brandHistory, setBrandHistory] = useState<BrandHistoryItem[]>([]);
+  const [scanStatus, setScanStatus] = useState<string>('');
+  const [completedPrompts, setCompletedPrompts] = useState<number>(0);
+  const [totalPrompts, setTotalPrompts] = useState<number>(0);
 
   // Tab State
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -152,31 +156,40 @@ function ScanResultsContent({ params }: PageProps) {
     }
   };
 
-  // Load Initial scan data on mount
+  // Load Initial scan data on mount & poll if running
   useEffect(() => {
     if (!scanJobId) return;
 
     // Cache current scan job ID for sidebar navigation return links
     localStorage.setItem('lastScanJobId', scanJobId);
 
-    const fetchInitialData = async () => {
+    let pollInterval: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    const loadFullScanData = async (dataPayload?: ScanStatusResponse) => {
       try {
-        setLoading(true);
-        setLoadingMessage('Fetching AI visibility diagnostics...');
-        setError(null);
-        const data = await getScanStatus(scanJobId);
+        const data = dataPayload || await getScanStatus(scanJobId);
+        if (!isMounted) return;
+
         setStatusData(data);
+        setScanStatus(data.status);
         if (data.brand_id && typeof window !== 'undefined') {
           localStorage.setItem('lastBrandId', data.brand_id);
         }
-
         setBrandName(data.brand_name ?? null);
+        if (data.completed_prompts !== undefined) setCompletedPrompts(data.completed_prompts);
+        if (data.total_prompts !== undefined) setTotalPrompts(data.total_prompts);
+
+        if (data.status === 'failed') {
+          setError('Scan job failed during execution.');
+          return;
+        }
 
         // Fetch recommendations
         try {
           setLoadingMessage('Generating personalized fix content...');
           const recs = await getRecommendations(scanJobId);
-          setRecommendations(recs);
+          if (isMounted) setRecommendations(recs);
         } catch (err) {
           console.error("Failed to fetch recommendations:", err);
         }
@@ -185,20 +198,88 @@ function ScanResultsContent({ params }: PageProps) {
         if (data.brand_name) {
           try {
             const hist = await getBrandHistory(data.brand_name);
-            setBrandHistory(hist);
+            if (isMounted) setBrandHistory(hist);
           } catch (err) {
             console.error("Failed to fetch history:", err);
           }
         }
       } catch (err: any) {
-        console.error(err);
-        setError(err?.message || 'Failed to fetch scan results.');
+        if (isMounted) {
+          console.error(err);
+          setError(err?.message || 'Failed to fetch scan results.');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchInitialData();
+    const startPolling = () => {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        try {
+          const pollData = await getScanStatus(scanJobId);
+          if (!isMounted) return;
+
+          setScanStatus(pollData.status);
+          if (pollData.brand_name) setBrandName(pollData.brand_name);
+          if (pollData.completed_prompts !== undefined) setCompletedPrompts(pollData.completed_prompts);
+          if (pollData.total_prompts !== undefined) setTotalPrompts(pollData.total_prompts);
+
+          if (pollData.status === 'completed' || pollData.status === 'failed') {
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+            await loadFullScanData(pollData);
+          }
+        } catch (pollErr) {
+          console.error('Polling error:', pollErr);
+        }
+      }, 2500);
+    };
+
+    const init = async () => {
+      try {
+        setLoading(true);
+        setLoadingMessage('Fetching AI visibility diagnostics...');
+        setError(null);
+
+        const data = await getScanStatus(scanJobId);
+        if (!isMounted) return;
+
+        setScanStatus(data.status);
+        if (data.brand_id && typeof window !== 'undefined') {
+          localStorage.setItem('lastBrandId', data.brand_id);
+        }
+        if (data.brand_name) setBrandName(data.brand_name);
+        if (data.completed_prompts !== undefined) setCompletedPrompts(data.completed_prompts);
+        if (data.total_prompts !== undefined) setTotalPrompts(data.total_prompts);
+
+        if (data.status === 'queued' || data.status === 'running') {
+          setLoading(false);
+          startPolling();
+        } else {
+          await loadFullScanData(data);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          console.error(err);
+          setError(err?.message || 'Failed to load initial scan status.');
+          setLoading(false);
+        }
+      }
+    };
+
+    init();
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, [scanJobId]);
 
   // Synchronize Tab state from URL search params
@@ -307,11 +388,29 @@ function ScanResultsContent({ params }: PageProps) {
     );
   }
 
+  const displayBrandName = brandName || 'Unknown Brand';
+
+  // Live progress view while scan is queued or running in background
+  if (scanStatus === 'queued' || scanStatus === 'running') {
+    return (
+      <SidebarLayout activeItem="dashboard" onTabChange={changeTab}>
+        <div className="p-6 md:p-8 space-y-8 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh]">
+          <ScanningProgress
+            brandName={displayBrandName}
+            scanType="initial"
+            completedPrompts={completedPrompts}
+            totalPrompts={totalPrompts}
+            activeProviders={['Groq', 'Gemini']}
+          />
+        </div>
+      </SidebarLayout>
+    );
+  }
+
   const results = statusData?.results || [];
   const totalCount = results.length;
   const mentionCount = results.filter((r) => r.brand_mentioned).length;
   const score = statusData?.score ?? 0;
-  const displayBrandName = brandName || 'Unknown Brand';
 
   return (
     <SidebarLayout activeItem={getActiveSidebarItem()} onTabChange={changeTab}>
