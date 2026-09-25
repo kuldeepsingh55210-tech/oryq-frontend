@@ -40,7 +40,7 @@ function ScanResultsContent({ params }: PageProps) {
 
   // Global Page States
   const [statusData, setStatusData] = useState<ScanStatusResponse | null>(null);
-  const [brandName, setBrandName] = useState('Your Brand');
+  const [brandName, setBrandName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState('Fetching AI visibility diagnostics...');
   const [error, setError] = useState<string | null>(null);
@@ -152,21 +152,6 @@ function ScanResultsContent({ params }: PageProps) {
     }
   };
 
-  // Helper to extract brand name from prompt text
-  const extractBrandName = (prompts: string[]): string => {
-    for (const prompt of prompts) {
-      const match = prompt.match(/Is\s+(.+?)\s+worth\s+the\s+price/i);
-      if (match && match[1]) return match[1].trim();
-
-      const match2 = prompt.match(/Compare\s+(.+?)\s+vs\s+competitors/i);
-      if (match2 && match2[1]) return match2[1].trim();
-
-      const match3 = prompt.match(/How\s+does\s+(.+?)\s+stack\s+up/i);
-      if (match3 && match3[1]) return match3[1].trim();
-    }
-    return 'Your Brand';
-  };
-
   // Load Initial scan data on mount
   useEffect(() => {
     if (!scanJobId) return;
@@ -185,13 +170,7 @@ function ScanResultsContent({ params }: PageProps) {
           localStorage.setItem('lastBrandId', data.brand_id);
         }
 
-        // Extract brand name from the results prompts if available
-        let extractedName = 'Your Brand';
-        if (data.results && data.results.length > 0) {
-          const prompts = data.results.map((r) => r.prompt_text);
-          extractedName = extractBrandName(prompts);
-          setBrandName(extractedName);
-        }
+        setBrandName(data.brand_name ?? null);
 
         // Fetch recommendations
         try {
@@ -203,11 +182,13 @@ function ScanResultsContent({ params }: PageProps) {
         }
 
         // Fetch brand history
-        try {
-          const hist = await getBrandHistory(extractedName);
-          setBrandHistory(hist);
-        } catch (err) {
-          console.error("Failed to fetch history:", err);
+        if (data.brand_name) {
+          try {
+            const hist = await getBrandHistory(data.brand_name);
+            setBrandHistory(hist);
+          } catch (err) {
+            console.error("Failed to fetch history:", err);
+          }
         }
       } catch (err: any) {
         console.error(err);
@@ -330,6 +311,7 @@ function ScanResultsContent({ params }: PageProps) {
   const totalCount = results.length;
   const mentionCount = results.filter((r) => r.brand_mentioned).length;
   const score = statusData?.score ?? 0;
+  const displayBrandName = brandName || 'Unknown Brand';
 
   return (
     <SidebarLayout activeItem={getActiveSidebarItem()} onTabChange={changeTab}>
@@ -344,19 +326,21 @@ function ScanResultsContent({ params }: PageProps) {
               <span className="text-xs font-semibold text-slate-500">Job: <span className="font-mono">{scanJobId}</span></span>
             </div>
             <h1 className="text-2xl font-bold text-white sm:text-3xl">
-              Scan Dashboard: <span className="text-accent-blue font-extrabold">{brandName}</span>
+              Scan Dashboard: <span className="text-accent-blue font-extrabold">{displayBrandName}</span>
             </h1>
-            <div className="flex items-center gap-x-2 mt-1">
-              <Link
-                href={`/history?brand=${encodeURIComponent(brandName)}`}
-                className="text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2z" />
-                </svg>
-                View score history for {brandName}
-              </Link>
-            </div>
+            {brandName && (
+              <div className="flex items-center gap-x-2 mt-1">
+                <Link
+                  href={`/history?brand=${encodeURIComponent(brandName)}`}
+                  className="text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2z" />
+                  </svg>
+                  View score history for {brandName}
+                </Link>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-3">
@@ -471,7 +455,7 @@ function ScanResultsContent({ params }: PageProps) {
               score={score}
               mentionCount={mentionCount}
               totalCount={totalCount}
-              brandName={brandName}
+              brandName={displayBrandName}
               brandHistory={brandHistory}
               emailInput={emailInput}
               setEmailInput={setEmailInput}
@@ -497,7 +481,7 @@ function ScanResultsContent({ params }: PageProps) {
               compError={compError}
               competitorData={competitorData}
               handleCompetitorSubmit={handleCompetitorSubmit}
-              brandName={brandName}
+              brandName={displayBrandName}
               score={score}
             />
           )}
@@ -514,7 +498,7 @@ function ScanResultsContent({ params }: PageProps) {
               halError={halError}
               hallucinations={hallucinations}
               handleHallucinationSubmit={handleHallucinationSubmit}
-              brandName={brandName}
+              brandName={displayBrandName}
             />
           )}
 
@@ -593,7 +577,7 @@ function ScanResultsContent({ params }: PageProps) {
         <div style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}>
           <ShareableScoreCard
             ref={scoreCardRef}
-            brandName={brandName}
+            brandName={displayBrandName}
             score={score}
             mentioned={mentionCount}
             total={totalCount}
@@ -609,7 +593,7 @@ function ScanResultsContent({ params }: PageProps) {
             isOpen={isShareModalOpen}
             onClose={() => setIsShareModalOpen(false)}
             imageSrc={shareImage}
-            brandName={brandName}
+            brandName={displayBrandName}
             score={score}
             shareText={`My brand's AI Visibility Score is ${score}/100 on ORYQ 🎯 Curious how visible YOUR brand is to ChatGPT, Claude, and Gemini? Free scan: oryq.ai #AIVisibility #GEO`}
           />
