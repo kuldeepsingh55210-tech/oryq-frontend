@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth/AuthContext';
+import PremiumCard from '@/components/ui/PremiumCard';
 
 interface Workspace {
   id: string;
@@ -84,7 +85,7 @@ function WorkspacesContent() {
     <SidebarLayout activeItem="dashboard">
       <div className="mx-auto max-w-7xl space-y-8 p-6 md:p-8">
         {/* Banner Section */}
-        <div className="relative overflow-hidden rounded-3xl border border-border-color bg-card p-6 shadow-md md:p-8">
+        <PremiumCard padding="large" className="relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(27,79,216,0.18),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(14,164,122,0.12),transparent_35%)]" />
           <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -103,7 +104,7 @@ function WorkspacesContent() {
             </div>
             <button
               onClick={() => setCreateModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1B4FD8] px-5 py-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-[#153eb2]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1B4FD8] px-5 py-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-[#153eb2] cursor-pointer"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -111,18 +112,11 @@ function WorkspacesContent() {
               Create Workspace
             </button>
           </div>
-        </div>
+        </PremiumCard>
 
+        {/* Error State */}
         {error && (
-          <div className="flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-medium text-red-300">
-            <span>{error}</span>
-            <button
-              onClick={fetchWorkspaces}
-              className="rounded-lg bg-red-500/20 px-3 py-1 text-xs font-bold text-red-200 transition hover:bg-red-500/30"
-            >
-              Retry
-            </button>
-          </div>
+          <PremiumCard error={error} onRetry={fetchWorkspaces} />
         )}
 
         {/* Modal for Creating Workspace */}
