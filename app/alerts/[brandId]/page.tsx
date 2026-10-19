@@ -7,6 +7,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingScreen from '@/components/LoadingScreen';
 import { API_BASE_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth/AuthContext';
+import PremiumCard from '@/components/ui/PremiumCard';
+import SeverityBadge, { SeverityLevel } from '@/components/ui/SeverityBadge';
 
 interface PageProps {
   params: Promise<{ brandId: string }>;
@@ -74,30 +76,6 @@ function formatDate(iso: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(d);
-}
-
-function getSeverityBadge(severity: string) {
-  const s = severity.toLowerCase();
-  if (s === 'critical' || s === 'high') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-[#DC2626]/40 bg-[#DC2626]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
-        <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626] animate-pulse" />
-        {severity}
-      </span>
-    );
-  }
-  if (s === 'medium') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-[#D97706]/40 bg-[#D97706]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#D97706]">
-        {severity}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-slate-500/30 bg-slate-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">
-      {severity}
-    </span>
-  );
 }
 
 function AlertsPageContent({ params }: PageProps) {
@@ -314,7 +292,7 @@ function AlertsPageContent({ params }: PageProps) {
     <SidebarLayout activeItem="dashboard">
       <div className="mx-auto max-w-7xl space-y-8 p-6 md:p-8">
         {/* Banner Section */}
-        <div className="relative overflow-hidden rounded-3xl border border-border-color bg-card p-6 shadow-md md:p-8">
+        <PremiumCard padding="large" className="relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(220,38,38,0.14),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(27,79,216,0.12),transparent_35%)]" />
           <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -332,22 +310,15 @@ function AlertsPageContent({ params }: PageProps) {
               </p>
             </div>
           </div>
-        </div>
+        </PremiumCard>
 
+        {/* Error State */}
         {error && (
-          <div className="flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-medium text-red-300">
-            <span>{error}</span>
-            <button
-              onClick={loadData}
-              className="rounded-lg bg-red-500/20 px-3 py-1 text-xs font-bold text-red-200 transition hover:bg-red-500/30"
-            >
-              Retry
-            </button>
-          </div>
+          <PremiumCard error={error} onRetry={loadData} />
         )}
 
         {/* SECTION 1: ALERT FEED */}
-        <div className="rounded-3xl border border-border-color bg-card p-6 shadow-md md:p-8">
+        <PremiumCard padding="large">
           <div className="flex flex-col gap-3 border-b border-border-color pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-white">Live Alert Feed</h2>
@@ -407,7 +378,7 @@ function AlertsPageContent({ params }: PageProps) {
                   >
                     <div className="space-y-1.5 max-w-3xl">
                       <div className="flex flex-wrap items-center gap-2">
-                        {getSeverityBadge(alert.severity)}
+                        <SeverityBadge severity={alert.severity.toLowerCase() as SeverityLevel} />
                         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
                           {alert.alert_type.replace('_', ' ')}
                         </span>
@@ -434,10 +405,10 @@ function AlertsPageContent({ params }: PageProps) {
               })
             )}
           </div>
-        </div>
+        </PremiumCard>
 
         {/* SECTION 2: ALERT SETTINGS */}
-        <div className="rounded-3xl border border-border-color bg-card p-6 shadow-md md:p-8">
+        <PremiumCard padding="large">
           <div className="border-b border-border-color pb-4">
             <h2 className="text-lg font-bold text-white">Alert Thresholds & Channel Rules</h2>
             <p className="text-xs text-secondary">
@@ -625,7 +596,7 @@ function AlertsPageContent({ params }: PageProps) {
               </button>
             </div>
           </form>
-        </div>
+        </PremiumCard>
       </div>
     </SidebarLayout>
   );
